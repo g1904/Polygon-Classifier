@@ -7,23 +7,23 @@ from src.fluctuating_value import FluctuatingValue
 
 # Controls
 BLOB_STEP_SIZE = 0.25
-OUTPUT_IMAGE_WIDTH = 256
+OUTPUT_IMAGE_WIDTH = 112
 NOISE_MULTIPLE_ON_SLIP = 0.6
 
 
-class ArtificialArtist:
-  def generateRandomArtist():
-    return ArtificialArtist(
-      averageBlobRadius=ArtificialArtist.randomFloatInRange(1.25, 5.0),
-      maxBlobRadiusDeviation=ArtificialArtist.randomFloatInRange(0.5, 1.0),
-      maxBlobRadiusChangePercentage=ArtificialArtist.randomFloatInRange(0.05, 0.15),
-      averageBlobPressure=ArtificialArtist.randomFloatInRange(0.7, 0.9),
-      maxBlobPressureChangePercentage=ArtificialArtist.randomFloatInRange(0.1, 0.15),
-      maxAngleOffsetDeviation=ArtificialArtist.randomFloatInRange(10, 20),
-      maxAngleOffsetChangePercentage=ArtificialArtist.randomFloatInRange(0.1, 0.16),
-      maxTexturingNoise=ArtificialArtist.randomFloatInRange(0.1, 0.2),
-      slipThreshold=ArtificialArtist.randomFloatInRange(0.01, 0.02),
-      maxSlipPercentage=ArtificialArtist.randomFloatInRange(0.05, 0.15))
+class ArtificialSketchGenerator:
+  def createNewGeneratorWithRandomParams():
+    return ArtificialSketchGenerator(
+      averageBlobRadius=ArtificialSketchGenerator.randomFloatInRange(3.0, 10.0),
+      maxBlobRadiusDeviation=ArtificialSketchGenerator.randomFloatInRange(0.5, 1.0),
+      maxBlobRadiusChangePercentage=ArtificialSketchGenerator.randomFloatInRange(0.05, 0.15),
+      averageBlobPressure=ArtificialSketchGenerator.randomFloatInRange(0.6, 0.9),
+      maxBlobPressureChangePercentage=ArtificialSketchGenerator.randomFloatInRange(0.05, 0.12),
+      maxAngleOffsetDeviation=ArtificialSketchGenerator.randomFloatInRange(10, 20),
+      maxAngleOffsetChangePercentage=ArtificialSketchGenerator.randomFloatInRange(0.1, 0.16),
+      maxTexturingNoise=ArtificialSketchGenerator.randomFloatInRange(0.1, 0.2),
+      slipThreshold=ArtificialSketchGenerator.randomFloatInRange(0.0, 0.015),
+      maxSlipPercentage=ArtificialSketchGenerator.randomFloatInRange(0.05, 0.15))
 
   def __init__(self, averageBlobRadius, maxBlobRadiusDeviation, maxBlobRadiusChangePercentage, averageBlobPressure, maxBlobPressureChangePercentage, maxAngleOffsetDeviation, maxAngleOffsetChangePercentage, maxTexturingNoise, slipThreshold, maxSlipPercentage):
     minBlobRadius = averageBlobRadius - maxBlobRadiusDeviation
@@ -42,13 +42,36 @@ class ArtificialArtist:
     self.maxSlipPercentage = maxSlipPercentage
     self.slipThreshold = slipThreshold
 
-
-  # Actually draw a line
-  def sketchLine(self, startPointPercentage, peakPointPercentage, endPointPercentage):
     # Create a new canvas
-    canvas = Image.new('L', (OUTPUT_IMAGE_WIDTH, OUTPUT_IMAGE_WIDTH), color=255)
-    canvasPixels = canvas.load()
+    self.canvas = Image.new('L', (OUTPUT_IMAGE_WIDTH, OUTPUT_IMAGE_WIDTH), color=255)
+    self.canvasPixels = self.canvas.load()
+    self.pixelToBlobDistanceMap = [[math.inf for y in range(OUTPUT_IMAGE_WIDTH)] for x in range(OUTPUT_IMAGE_WIDTH)]
+  
 
+  # Draw the given BLC
+  def sketchBLC(self, initialBLC):
+    # Draw each side of a initialBLC
+    nextLineStartPoint = initialBLC[0]
+    updatedBLC = [initialBLC[0]]
+    for i in range(1, len(initialBLC), 2):
+      startPoint = nextLineStartPoint
+      peakPoint = initialBLC[i]
+      endPoint = initialBLC[i + 1]
+      newPeakAndEndPoint = self.sketchLine(startPoint, peakPoint, endPoint)
+      nextLineStartPoint = newPeakAndEndPoint[1]
+      updatedBLC.extend(newPeakAndEndPoint)
+    
+    # Add some overall noise
+    gaussianMask = np.random.normal(0, 255, (OUTPUT_IMAGE_WIDTH, OUTPUT_IMAGE_WIDTH))
+    for x in range(OUTPUT_IMAGE_WIDTH):
+      for y in range(OUTPUT_IMAGE_WIDTH):
+        self.canvasPixels[x, y] = math.floor(np.average([self.canvasPixels[x, y], gaussianMask[x][y]], weights=[5, 1]))
+    
+    return updatedBLC
+
+
+  # Draw a line on the canvas
+  def sketchLine(self, startPointPercentage, peakPointPercentage, endPointPercentage):
     # We get values of 0-1 in for our x's and y's. We'll scale these up to pixel values
     startXAsPercentage, startYAsPercentage = startPointPercentage
     peakXAsPercentage, peakYAsPercentage = peakPointPercentage
@@ -60,8 +83,7 @@ class ArtificialArtist:
     endX = endXAsPercentage * OUTPUT_IMAGE_WIDTH
     endY = endYAsPercentage * OUTPUT_IMAGE_WIDTH
 
-    # Draw the line
-    pixelToBlobDistanceMap = [[math.inf for y in range(OUTPUT_IMAGE_WIDTH)] for x in range(OUTPUT_IMAGE_WIDTH)]
+    # Setup some loop vars
     blobX = startX
     blobY = startY
     numberOfStepsLeftInSlip = 0
@@ -70,8 +92,8 @@ class ArtificialArtist:
     angleToNextBlob = None
 
     # Calculate some constants and some inital values
-    angleFromStartToEnd = ArtificialArtist.calculateAngleBasedOnEndpoints(startX, startY, endX, endY)
-    angleFromStartToPeak = ArtificialArtist.calculateAngleBasedOnEndpoints(startX, startY, peakX, peakY)
+    angleFromStartToEnd = ArtificialSketchGenerator.calculateAngleBasedOnEndpoints(startX, startY, endX, endY)
+    angleFromStartToPeak = ArtificialSketchGenerator.calculateAngleBasedOnEndpoints(startX, startY, peakX, peakY)
     optimalAngleAtStart = angleFromStartToPeak - (angleFromStartToEnd - angleFromStartToPeak)
     linearDistanceFromStartToPeak = math.dist([startX, startY], [peakX, peakY])
     linearDistanceFromPeakToEnd = math.dist([peakX, peakY], [endX, endY])
@@ -81,7 +103,7 @@ class ArtificialArtist:
 
     # Drop all the blobs
     blobIndex = 0
-    while (not ArtificialArtist.haveReachedEnd(blobX, blobY, endX, endY) and not ArtificialArtist.havePassedEnd(startX, startY, blobX, blobY, endX, endY)):
+    while (not ArtificialSketchGenerator.haveReachedEnd(blobX, blobY, endX, endY) and not ArtificialSketchGenerator.havePassedEnd(startX, startY, blobX, blobY, endX, endY)):
       # The first loop we'll use the pre-initialized values from above
       if blobIndex != 0:
         blobX = blobX + (BLOB_STEP_SIZE * np.cos(angleToNextBlob))
@@ -104,15 +126,13 @@ class ArtificialArtist:
         numberOfStepsLeftInSlip = random.random() * self.maxSlipPercentage * OUTPUT_IMAGE_WIDTH
 
       # Drop this blob
-      ArtificialArtist.placeInkBlob(
+      self.placeInkBlob(
         blobX=blobX,
         blobY=blobY,
         blobRadius=blobRadius,
         blobPressure=blobPressure,
         numberOfStepsLeftInSlip=numberOfStepsLeftInSlip,
-        maxTexturingNoise=self.maxTexturingNoise,
-        canvasPixels=canvasPixels,
-        pixelToBlobDistanceMap=pixelToBlobDistanceMap)
+        maxTexturingNoise=self.maxTexturingNoise)
 
       # Although we won't be drawing a perfect line, we'll want to know what the remainning line would look like if it was perfect
       optimalAngle = None
@@ -121,15 +141,15 @@ class ArtificialArtist:
         # For the first half, our optimal angle will linearly shift from the intital angle to the angle at the peak
         percentOfCompletedDistanceToPeak = (float(blobIndex) + 1.0) / float(numberOfStepsFromStartToPeak)
         # The optimal angle is pased on the shortest path
-        shortestAngularDistance = ArtificialArtist.calculateShortestDistanceBetweenAngles(angleFromStartToEnd, optimalAngleAtStart)
+        shortestAngularDistance = ArtificialSketchGenerator.calculateShortestDistanceBetweenAngles(angleFromStartToEnd, optimalAngleAtStart)
         optimalAngle = (percentOfCompletedDistanceToPeak * shortestAngularDistance) + optimalAngleAtStart
         percentOfCompletedDistanceToNextTarget = percentOfCompletedDistanceToPeak
       else:
         # For the second half, our optimal angle will linearly shift from the angle at the peak to pointing at the end
         remainningDistanceToEnd = math.dist([blobX, blobY], [endX, endY])
         percentOfCompletedDistanceToEnd = 1.0 - (remainningDistanceToEnd / linearDistanceFromPeakToEnd)
-        angleToEnd = ArtificialArtist.calculateAngleBasedOnEndpoints(blobX, blobY, endX, endY)
-        shortestAngularDistance = ArtificialArtist.calculateShortestDistanceBetweenAngles(angleToEnd, angleFromStartToEnd)
+        angleToEnd = ArtificialSketchGenerator.calculateAngleBasedOnEndpoints(blobX, blobY, endX, endY)
+        shortestAngularDistance = ArtificialSketchGenerator.calculateShortestDistanceBetweenAngles(angleToEnd, angleFromStartToEnd)
         optimalAngle = (percentOfCompletedDistanceToEnd * shortestAngularDistance) + angleFromStartToEnd
         percentOfCompletedDistanceToNextTarget = percentOfCompletedDistanceToEnd
       
@@ -145,30 +165,33 @@ class ArtificialArtist:
     newEndY = blobY
 
     # Temp!
-    canvas = canvas.convert('RGB')
-    canvasPixels = canvas.load()
-    for x in range(math.floor(startX - 3), math.floor(startX + 4)):
-      for y in range(math.floor(startY - 3), math.floor(startY + 4)):
-        canvasPixels[x, y] = (0, 250, 0)
-    for x in range(math.floor(peakX - 2), math.floor(peakX + 3)):
-      for y in range(math.floor(peakY - 2), math.floor(peakY + 3)):
-        canvasPixels[x, y] = (0, 0, 250)
-    for x in range(math.floor(newPeakX - 2), math.floor(newPeakX + 3)):
-      for y in range(math.floor(newPeakY - 2), math.floor(newPeakY + 3)):
-        canvasPixels[x, y] = (150, 0, 150)
-    for x in range(math.floor(endX - 3), math.floor(endX + 4)):
-      for y in range(math.floor(endY - 3), math.floor(endY + 4)):
-        canvasPixels[x, y] = (250, 0, 0)
+    tempCanvas = self.canvas.convert('RGB')
+    tempCanvasPixels = tempCanvas.load()
+    #for x in range(math.floor(startX - 3), math.floor(startX + 4)):
+    #  for y in range(math.floor(startY - 3), math.floor(startY + 4)):
+    #    self.canvasPixels[x, y] = (0, 250, 0)
+    #for x in range(math.floor(peakX - 2), math.floor(peakX + 3)):
+    #  for y in range(math.floor(peakY - 2), math.floor(peakY + 3)):
+    #    self.canvasPixels[x, y] = (0, 0, 250)
+    #for x in range(math.floor(newPeakX - 2), math.floor(newPeakX + 3)):
+    #  for y in range(math.floor(newPeakY - 2), math.floor(newPeakY + 3)):
+    #    self.canvasPixels[x, y] = (150, 0, 150)
+    #for x in range(math.floor(endX - 3), math.floor(endX + 4)):
+    #  for y in range(math.floor(endY - 3), math.floor(endY + 4)):
+    #    self.canvasPixels[x, y] = (250, 0, 0)
 
     # !!! - Note: This should probably go somewhere else. - !!!
-    canvas.show()
-    canvas.save('outputs/sample-artificial-line.png')
-    return [(newPeakX, newPeakY), (newEndX, newEndY)]
+    #self.canvas.show()
+    #self.canvas.save('outputs/sample-artificial-line.png')
+    newPeakXPercentage = newPeakX / OUTPUT_IMAGE_WIDTH
+    newPeakYPercentage = newPeakY / OUTPUT_IMAGE_WIDTH
+    newEndXPercentage = newEndX / OUTPUT_IMAGE_WIDTH
+    newEndYPercentage = newEndY / OUTPUT_IMAGE_WIDTH
+    return [(newPeakXPercentage, newPeakYPercentage), (newEndXPercentage, newEndYPercentage)]
 
 
   # Drops an ink blob with the given specifications at the given location on the given canvas
-  @staticmethod
-  def placeInkBlob(blobX, blobY, blobRadius, blobPressure, numberOfStepsLeftInSlip, maxTexturingNoise, canvasPixels, pixelToBlobDistanceMap):
+  def placeInkBlob(self, blobX, blobY, blobRadius, blobPressure, numberOfStepsLeftInSlip, maxTexturingNoise):
     # We only need to look at a subset of the pixels in the overall canvas
     minPossiblePixelX = math.floor(blobX - blobRadius)
     maxPossiblePixelX = math.ceil(blobX + blobRadius)
@@ -181,7 +204,7 @@ class ArtificialArtist:
         if (pixelX in range(0, OUTPUT_IMAGE_WIDTH)) and (pixelY in range(0, OUTPUT_IMAGE_WIDTH)):
           distanceToThisPixel = math.dist([pixelX + 0.5, pixelY + 0.5], [blobX, blobY])
           # Only color this pixel if it is within this blob's radius, and no previous blob is already colser to the pixel than this one.
-          if (distanceToThisPixel <= blobRadius) and (distanceToThisPixel < pixelToBlobDistanceMap[pixelX][pixelY]):
+          if (distanceToThisPixel <= blobRadius) and (distanceToThisPixel < self.pixelToBlobDistanceMap[pixelX][pixelY]):
             pixelColor = math.floor(255.0 * (1.0 - (blobPressure * (1.0 - math.pow(distanceToThisPixel / blobRadius, 2.0)))))
 
             # For texturing purposes, offset this pixel's color by a random amount
@@ -193,8 +216,8 @@ class ArtificialArtist:
             pixelColor = math.floor(np.min([255, pixelColor]))
 
             # Apply this pixel's color
-            canvasPixels[pixelX, pixelY] = pixelColor
-            pixelToBlobDistanceMap[pixelX][pixelY] = distanceToThisPixel
+            self.canvasPixels[pixelX, pixelY] = pixelColor
+            self.pixelToBlobDistanceMap[pixelX][pixelY] = distanceToThisPixel
 
 
   @staticmethod
@@ -234,27 +257,34 @@ class ArtificialArtist:
   def randomFloatInRange(min, max):
     return min + (random.random() * (max - min))
 
-# Temp!
-x1 = None
-y1 = None
-yPeak = None
-xPeak = None
-x2 = None
-y2 = None
-if random.random() > 0.5:
-  x1 = 0.125 + (random.random() * 0.25)
-  x2 = 0.625 + (random.random() * 0.25)
-else:
-  x1 = 0.625 + (random.random() * 0.25)
-  x2 = 0.125 + (random.random() * 0.25)
-if random.random() > 0.5:
-  y1 = 0.125 + (random.random() * 0.25)
-  y2 = 0.625 + (random.random() * 0.25)
-else:
-  y1 = 0.625 + (random.random() * 0.25)
-  y2 = 0.125 + (random.random() * 0.25)
-xPeak = np.min([x1, x2]) + 0.05 + (random.random() * (np.abs(x1 - x2) - 0.1))
-yPeak = np.min([y1, y2]) + 0.05 + (random.random() * (np.abs(y1 - y2) - 0.1))
 
-artificialArtist = ArtificialArtist.generateRandomArtist()
-artificialArtist.sketchLine((x1, y1), (xPeak, yPeak), (x2, y2))
+for i in range(3):
+  # Temp!
+  x1 = ArtificialSketchGenerator.randomFloatInRange(0.05, 0.4)
+  y1 = ArtificialSketchGenerator.randomFloatInRange(0.0, 0.4)
+  x2 = ArtificialSketchGenerator.randomFloatInRange(0.6, 0.95)
+  y2 = ArtificialSketchGenerator.randomFloatInRange(0.05, 0.4)
+  #x12Peak = np.min([x1, x2]) + 0.05 + (random.random() * (np.abs(x1 - x2) - 0.1))
+  x12Peak = np.min([x1, x2]) + (0.5 * np.abs(x1 - x2))
+  #y12Peak = np.min([y1, y2]) + 0.05 + (random.random() * (np.abs(y1 - y2) - 0.1))
+  y12Peak = np.min([y1, y2]) + (0.5 * np.abs(y1 - y2))
+  x3 = ArtificialSketchGenerator.randomFloatInRange(0.05, 0.95)
+  y3 = ArtificialSketchGenerator.randomFloatInRange(0.6, 0.95)
+  #x23Peak = np.min([x2, x3]) + 0.05 + (random.random() * (np.abs(x2 - x3) - 0.1))
+  x23Peak = np.min([x2, x3]) + (0.5 * np.abs(x2 - x3))
+  #y23Peak = np.min([y2, y3]) + 0.05 + (random.random() * (np.abs(y2 - y3) - 0.1))
+  y23Peak = np.min([y2, y3]) + (0.5 * np.abs(y2 - y3))
+  #x31Peak = np.min([x3, x1]) + 0.05 + (random.random() * (np.abs(x3 - x1) - 0.1))
+  x31Peak = np.min([x3, x1]) + (0.5 * np.abs(x3 - x1))
+  #y31Peak = np.min([y3, y1]) + 0.05 + (random.random() * (np.abs(y3 - y1) - 0.1))
+  y31Peak = np.min([y3, y1]) + (0.5 * np.abs(y3 - y1))
+
+  # Sketch the shape
+  sketchGenerator = ArtificialSketchGenerator.createNewGeneratorWithRandomParams()
+  initialBLC = [(x1, y1), (x12Peak, y12Peak), (x2, y2), (x23Peak, y23Peak), (x3, y3), (x31Peak, y31Peak), (x1, y1) ]
+  updatedBLC = sketchGenerator.sketchBLC(initialBLC)
+  #print("Updated BLC: " + str(updatedBLC))
+
+  temp = sketchGenerator.canvas.resize((28, 28))
+  #temp.show()
+  temp.save('outputs/sample-artificial-triangle' + str(i) + '.png')
