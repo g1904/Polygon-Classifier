@@ -11,6 +11,12 @@ class Point:
     
     def getY(self):
         return self.y
+        
+    def __repr__(self):
+        return self.__str__() 
+            
+    def __str__(self):
+        return "Point(%s,%s)"%(self.x, self.y) 
 
     
 class Line:
@@ -26,7 +32,13 @@ class Line:
         return self.curvePoint
         
     def getEndPoint(self):
-        return self.endPoint    
+        return self.endPoint  
+        
+    def __repr__(self):
+        return self.__str__() 
+        
+    def __str__(self): 
+        return "Line(%s,%s,%s)"%(self.startPoint, self.curvePoint, self.endPoint)
         
     
 class ConnectedSet:
@@ -44,10 +56,22 @@ class ConnectedSet:
     
     def getLines(self):
         return self.lines 
+    
+    def __repr__(self):
+        return '[' + self.__str__() + ']'
+        
+    def __str__(self): 
+        return ', '.join([str(elem) for elem in self.points])
         
 class BLC:
     def __init__(self, connectedSets):
         self.connectedSets = connectedSets
             
     def getConnectedSets(self):
-        return self.connectedSets               
+        return self.connectedSets  
+        
+    def __repr__(self):
+        return '[' + self.__str__() + ']'
+        
+    def __str__(self): 
+        return ', '.join([str(elem) for elem in self.connectedSets])       
