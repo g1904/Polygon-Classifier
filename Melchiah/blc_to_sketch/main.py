@@ -14,10 +14,12 @@ NOISE_MULTIPLE_ON_SLIP = 0.6
 class ArtificialSketchGenerator:
   def createNewGeneratorWithRandomParams():
     return ArtificialSketchGenerator(
-      averageBlobRadius=ArtificialSketchGenerator.randomFloatInRange(3.0, 10.0),
+      #averageBlobRadius=ArtificialSketchGenerator.randomFloatInRange(3.0, 10.0),
+      averageBlobRadius=ArtificialSketchGenerator.randomFloatInRange(5.0, 5.0),
       maxBlobRadiusDeviation=ArtificialSketchGenerator.randomFloatInRange(0.5, 1.0),
       maxBlobRadiusChangePercentage=ArtificialSketchGenerator.randomFloatInRange(0.05, 0.15),
-      averageBlobPressure=ArtificialSketchGenerator.randomFloatInRange(0.6, 0.9),
+      #averageBlobPressure=ArtificialSketchGenerator.randomFloatInRange(0.6, 0.9),
+      averageBlobPressure=ArtificialSketchGenerator.randomFloatInRange(0.6, 0.6),
       maxBlobPressureChangePercentage=ArtificialSketchGenerator.randomFloatInRange(0.05, 0.12),
       maxAngleOffsetDeviation=ArtificialSketchGenerator.randomFloatInRange(10, 20),
       maxAngleOffsetChangePercentage=ArtificialSketchGenerator.randomFloatInRange(0.1, 0.16),
@@ -62,10 +64,10 @@ class ArtificialSketchGenerator:
       updatedBLC.extend(newPeakAndEndPoint)
     
     # Add some overall noise
-    gaussianMask = np.random.normal(0, 255, (OUTPUT_IMAGE_WIDTH, OUTPUT_IMAGE_WIDTH))
-    for x in range(OUTPUT_IMAGE_WIDTH):
-      for y in range(OUTPUT_IMAGE_WIDTH):
-        self.canvasPixels[x, y] = math.floor(np.average([self.canvasPixels[x, y], gaussianMask[x][y]], weights=[5, 1]))
+    #gaussianMask = np.random.normal(0, 255, (OUTPUT_IMAGE_WIDTH, OUTPUT_IMAGE_WIDTH))
+    #for x in range(OUTPUT_IMAGE_WIDTH):
+    #  for y in range(OUTPUT_IMAGE_WIDTH):
+    #    self.canvasPixels[x, y] = math.floor(np.average([self.canvasPixels[x, y], gaussianMask[x][y]], weights=[5, 1]))
     
     return updatedBLC
 
@@ -146,12 +148,15 @@ class ArtificialSketchGenerator:
         percentOfCompletedDistanceToNextTarget = percentOfCompletedDistanceToPeak
       else:
         # For the second half, our optimal angle will linearly shift from the angle at the peak to pointing at the end
-        remainningDistanceToEnd = math.dist([blobX, blobY], [endX, endY])
-        percentOfCompletedDistanceToEnd = 1.0 - (remainningDistanceToEnd / linearDistanceFromPeakToEnd)
+        linearDistanceLeftToEnd = math.dist([blobX, blobY], [endX, endY])
+        percentOfDistanceLeftToEnd = 1.0 - (linearDistanceLeftToEnd / linearDistanceFromPeakToEnd)
+        #this is going wrong!!!
+        #linearDistanceistanceToStart = math.dist([blobX, blobY], [startX, startY])
+        #percentOfDistanceFromStart = linearDistanceistanceToStart / linearDistanceFromPeakToEnd
         angleToEnd = ArtificialSketchGenerator.calculateAngleBasedOnEndpoints(blobX, blobY, endX, endY)
         shortestAngularDistance = ArtificialSketchGenerator.calculateShortestDistanceBetweenAngles(angleToEnd, angleFromStartToEnd)
-        optimalAngle = (percentOfCompletedDistanceToEnd * shortestAngularDistance) + angleFromStartToEnd
-        percentOfCompletedDistanceToNextTarget = percentOfCompletedDistanceToEnd
+        optimalAngle = (percentOfDistanceLeftToEnd * shortestAngularDistance) + angleFromStartToEnd
+        percentOfCompletedDistanceToNextTarget = percentOfDistanceLeftToEnd
       
       # We want our line to be messy in the middle, but still hit the right angle at the peak
       angleOffset = self.angleOffsetFluctuator.getNext()
@@ -227,9 +232,11 @@ class ArtificialSketchGenerator:
 
   @staticmethod
   def havePassedEnd(startX, startY, blobX, blobY, endX, endY):
+    distanceToEnd = math.dist([blobX, blobY], [endX, endY])
+    areInRangeOfEnd = distanceToEnd < (BLOB_STEP_SIZE * 8.0)
     haveHorizontallyPasedEnd = np.abs(blobX - startX) > np.abs(endX - startX)
     haveVerticallyPasedEnd = np.abs(blobY - startY) > np.abs(endY - startY)
-    return haveHorizontallyPasedEnd and haveVerticallyPasedEnd
+    return areInRangeOfEnd and haveHorizontallyPasedEnd and haveVerticallyPasedEnd
 
 
   @staticmethod
@@ -258,33 +265,59 @@ class ArtificialSketchGenerator:
     return min + (random.random() * (max - min))
 
 
-for i in range(3):
+for i in range(1):
   # Temp!
-  x1 = ArtificialSketchGenerator.randomFloatInRange(0.05, 0.4)
-  y1 = ArtificialSketchGenerator.randomFloatInRange(0.0, 0.4)
-  x2 = ArtificialSketchGenerator.randomFloatInRange(0.6, 0.95)
-  y2 = ArtificialSketchGenerator.randomFloatInRange(0.05, 0.4)
+  #x1 = ArtificialSketchGenerator.randomFloatInRange(0.05, 0.4)
+  #y1 = ArtificialSketchGenerator.randomFloatInRange(0.0, 0.4)
+  #x2 = ArtificialSketchGenerator.randomFloatInRange(0.6, 0.95)
+  #y2 = ArtificialSketchGenerator.randomFloatInRange(0.05, 0.4)
   #x12Peak = np.min([x1, x2]) + 0.05 + (random.random() * (np.abs(x1 - x2) - 0.1))
-  x12Peak = np.min([x1, x2]) + (0.5 * np.abs(x1 - x2))
+  #x12Peak = np.min([x1, x2]) + (0.5 * np.abs(x1 - x2))
   #y12Peak = np.min([y1, y2]) + 0.05 + (random.random() * (np.abs(y1 - y2) - 0.1))
-  y12Peak = np.min([y1, y2]) + (0.5 * np.abs(y1 - y2))
-  x3 = ArtificialSketchGenerator.randomFloatInRange(0.05, 0.95)
-  y3 = ArtificialSketchGenerator.randomFloatInRange(0.6, 0.95)
+  #y12Peak = np.min([y1, y2]) + (0.5 * np.abs(y1 - y2))
+  #x3 = ArtificialSketchGenerator.randomFloatInRange(0.05, 0.95)
+  #y3 = ArtificialSketchGenerator.randomFloatInRange(0.6, 0.95)
   #x23Peak = np.min([x2, x3]) + 0.05 + (random.random() * (np.abs(x2 - x3) - 0.1))
-  x23Peak = np.min([x2, x3]) + (0.5 * np.abs(x2 - x3))
+  #x23Peak = np.min([x2, x3]) + (0.5 * np.abs(x2 - x3))
   #y23Peak = np.min([y2, y3]) + 0.05 + (random.random() * (np.abs(y2 - y3) - 0.1))
-  y23Peak = np.min([y2, y3]) + (0.5 * np.abs(y2 - y3))
+  #y23Peak = np.min([y2, y3]) + (0.5 * np.abs(y2 - y3))
   #x31Peak = np.min([x3, x1]) + 0.05 + (random.random() * (np.abs(x3 - x1) - 0.1))
-  x31Peak = np.min([x3, x1]) + (0.5 * np.abs(x3 - x1))
+  #x31Peak = np.min([x3, x1]) + (0.5 * np.abs(x3 - x1))
   #y31Peak = np.min([y3, y1]) + 0.05 + (random.random() * (np.abs(y3 - y1) - 0.1))
-  y31Peak = np.min([y3, y1]) + (0.5 * np.abs(y3 - y1))
+  #y31Peak = np.min([y3, y1]) + (0.5 * np.abs(y3 - y1))
 
   # Sketch the shape
   sketchGenerator = ArtificialSketchGenerator.createNewGeneratorWithRandomParams()
-  initialBLC = [(x1, y1), (x12Peak, y12Peak), (x2, y2), (x23Peak, y23Peak), (x3, y3), (x31Peak, y31Peak), (x1, y1) ]
+  #initialBLC = [(x1, y1), (x12Peak, y12Peak), (x2, y2), (x23Peak, y23Peak), (x3, y3), (x31Peak, y31Peak), (x1, y1)]
+  #initialBLC = [(0.35, 0.7), (0.5, 0.6), (0.65, 0.7), (0.45, 0.8), (0.35, 0.7), (0.4, 0.45), (0.5, 0.3)]
+  initialBLC = [(0.2, 0.7), (0.5, 0.7), (0.8, 0.7), (0.65, 0.5), (0.5, 0.2), (0.35, 0.5), (0.2, 0.7)]
   updatedBLC = sketchGenerator.sketchBLC(initialBLC)
   #print("Updated BLC: " + str(updatedBLC))
 
-  temp = sketchGenerator.canvas.resize((28, 28))
+  #temp = sketchGenerator.canvas.resize((28, 28))
+  temp = sketchGenerator.canvas.resize((OUTPUT_IMAGE_WIDTH, OUTPUT_IMAGE_WIDTH))
   #temp.show()
-  temp.save('outputs/sample-artificial-triangle' + str(i) + '.png')
+  #temp = Image.new('RGB', (OUTPUT_IMAGE_WIDTH, OUTPUT_IMAGE_WIDTH), color=(255,255,255))
+  temp = temp.convert('RGB')
+  tempCanvasPixels = temp.load()
+  vertexX, vertexY = initialBLC[0]
+  vertexX = vertexX * OUTPUT_IMAGE_WIDTH
+  vertexY = vertexY * OUTPUT_IMAGE_WIDTH
+  for x in range(math.floor(vertexX - 2), math.floor(vertexX + 3)):
+    for y in range(math.floor(vertexY - 2), math.floor(vertexY + 3)):
+      tempCanvasPixels[x, y] = (0, 250, 0)
+  for j in range(1, len(updatedBLC), 2):
+    vertexX, vertexY = updatedBLC[j + 1]
+    vertexX = vertexX * OUTPUT_IMAGE_WIDTH
+    vertexY = vertexY * OUTPUT_IMAGE_WIDTH
+    for x in range(math.floor(vertexX - 2), math.floor(vertexX + 3)):
+      for y in range(math.floor(vertexY - 2), math.floor(vertexY + 3)):
+        tempCanvasPixels[x, y] = (250, 0, 0)
+    peakX, peakY = updatedBLC[j]
+    peakX = peakX * OUTPUT_IMAGE_WIDTH
+    peakY = peakY * OUTPUT_IMAGE_WIDTH
+    for x in range(math.floor(peakX - 2), math.floor(peakX + 3)):
+      for y in range(math.floor(peakY - 2), math.floor(peakY + 3)):
+        tempCanvasPixels[x, y] = (0, 0, 250)
+  temp.save('outputs/sample-line-4.jpg')
+  #temp.save('outputs/sample-artificial-triangle-' + str(i) + '.png')
