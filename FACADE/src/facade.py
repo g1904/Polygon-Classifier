@@ -4,8 +4,9 @@ from src.artificial_artist import ArtificialArtist
 
 # Fully Algorithmic, Completely Artificial Drawing Engine
 class FACADE:
-  def __init__(self, classPropertiesObjects, drawingSettings):
+  def __init__(self, classPropertiesObjects, exportImageWidth, drawingSettings):
     self.classPropertiesObjects = classPropertiesObjects
+    self.exportImageSize = (exportImageWidth, exportImageWidth)
     self.drawingSettings = drawingSettings
   
 
@@ -36,7 +37,8 @@ class FACADE:
 
         # Save the drawing
         outputImagePath = '%s/%s_%d.jpg'%(imageOutputDirectoryPathForClass, classProps.className, drawingIndex)
-        drawing.save(outputImagePath)
+        outputImage = drawing.resize(self.exportImageSize)
+        outputImage.save(outputImagePath)
         outputBLCPath = '%s/%s_%d.json'%(blcOutputDirectoryPathForClass, classProps.className, drawingIndex)
         blcAfterDrawing.save(outputBLCPath)
 

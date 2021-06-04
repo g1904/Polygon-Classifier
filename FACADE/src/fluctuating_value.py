@@ -14,8 +14,8 @@ class FluctuatingValue:
     maxChangePercentage = random.uniform(limits.maxChangePercentage_min, limits.maxChangePercentage_max)
 
     # Use the random props from above to generate a new fluctuating value
-    minValue = averageValue + maxDeviationFromAverage
-    maxValue = averageValue - maxDeviationFromAverage
+    minValue = averageValue - maxDeviationFromAverage
+    maxValue = averageValue + maxDeviationFromAverage
     maxChangeDelta = maxChangePercentage * (maxValue - minValue)
     return FluctuatingValue(minValue, maxValue, maxChangeDelta)
   
@@ -57,12 +57,12 @@ class FluctuatingValue:
     newValue = np.min([newValue, self.maxVal])
 
     # Update the records
-    self.previousValue = newValue
     if (newValue == self.minVal) or (newValue == self.maxVal):
       # If we've run into the bounds, then we don't want to continue accelerating outwards
       self.previousChange = -1.0 * self.previousChange
     else:
       self.previousChange = newValue - self.previousValue
+    self.previousValue = newValue
 
     # Return the requested value
     return newValue
@@ -70,5 +70,4 @@ class FluctuatingValue:
 
   # Get a positive or negative change delta in the right range
   def getRandomChangeDelta(self):
-    randomUnitVector = ((random.random() * 2.0) - 1.0)
-    return self.maxChangeDelta * randomUnitVector
+    return self.maxChangeDelta * random.uniform(-1.0, 1.0)

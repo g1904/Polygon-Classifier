@@ -82,7 +82,7 @@ class ArtificialArtist:
         startPoint = nextLineStartPoint
         peakPoint = blcPoints[i]
         endPoint = blcPoints[i + 1]
-        newPeakAndEndPoint = self.sketchLine(startPoint, peakPoint, endPoint)
+        newPeakAndEndPoint = self.drawAWholeLine(startPoint, peakPoint, endPoint)
         nextLineStartPoint = newPeakAndEndPoint[1]
         updatedSetPoints.extend(newPeakAndEndPoint)
       
@@ -103,47 +103,58 @@ class ArtificialArtist:
 
 
   # Draw a line on the canvas
-  def sketchLine(self, startPointPercentage, peakPointPercentage, endPointPercentage):
+  def drawAWholeLine(self, startPointPercentage, peakPointPercentage, endPointPercentage):
     # We get values of 0-1 in for our x's and y's. We'll scale these up to pixel values
-    startX = startPointPercentage.x * self.imageWidth
-    startY = startPointPercentage.y * self.imageWidth
-    peakX = peakPointPercentage.x * self.imageWidth
-    peakY = peakPointPercentage.y * self.imageWidth
-    endX = endPointPercentage.x * self.imageWidth
-    endY = endPointPercentage.y * self.imageWidth
+    startX = float(startPointPercentage.x) * self.imageWidth
+    startY = float(startPointPercentage.y) * self.imageWidth
+    peakX = float(peakPointPercentage.x) * self.imageWidth
+    peakY = float(peakPointPercentage.y) * self.imageWidth
+    endX = float(endPointPercentage.x) * self.imageWidth
+    endY = float(endPointPercentage.y) * self.imageWidth
 
-    # Setup some loop vars
+    # Draw the first half of the line
+    # Calculate the nessecary angles for the first half of the line
+    angleFromStartToEnd = ArtificialArtist.calculateAngleBasedOnEndpoints(startX, startY, endX, endY)
+    angleFromStartToPeak = ArtificialArtist.calculateAngleBasedOnEndpoints(startX, startY, peakX, peakY)
+    angleFormedByEndStartPeak = ArtificialArtist.getAngleBetween(angleFromStartToEnd, angleFromStartToPeak)
+    angleAtStart = (2.0 * angleFormedByEndStartPeak) + angleFromStartToEnd
+    angleAtPeak = angleFromStartToEnd
+    diffBetweenStartAndPeakAngles = ArtificialArtist.getAngleBetween(angleAtStart, angleAtPeak)
+    # clalculate the number of blobs in the first half of the line
+    linearDistanceFromStartToPeak = math.dist([startX, startY], [peakX, peakY])
+    amountToInflateLinearDistanceToPeak = (math.pow(np.abs(diffBetweenStartAndPeakAngles), 2) / 16.0) + 1.0
+    distanceAlongCurveFromStartToPeak = linearDistanceFromStartToPeak * amountToInflateLinearDistanceToPeak
+    numberOfStepsFromStartToPeak = round(distanceAlongCurveFromStartToPeak / BLOB_STEP_SIZE)
+    # Draw the first half of the line
+    newPeakX, newPeakY = self.drawHalfOfALine(startX, startY, angleAtStart, diffBetweenStartAndPeakAngles, numberOfStepsFromStartToPeak)
+
+    # Draw the second half of the line
+    # Calculate the nessecary angles for the second half of the line
+    angleFromPeakToEnd = ArtificialArtist.calculateAngleBasedOnEndpoints(newPeakX, newPeakY, endX, endY)
+    diffBetweenPeakAndEndAngles = 2.0 * ArtificialArtist.getAngleBetween(angleAtPeak, angleFromPeakToEnd)
+    # clalculate the number of blobs in the second half of the line
+    linearDistanceFromPeakToEnd = math.dist([newPeakX, newPeakY], [endX, endY])
+    amountToInflateLinearDistanceToEnd = (math.pow(np.abs(diffBetweenPeakAndEndAngles), 2) / 16.0) + 1.0
+    distanceAlongCurveFromPeakToEnd = linearDistanceFromPeakToEnd * amountToInflateLinearDistanceToEnd
+    numberOfStepsFromPeakToEnd = round(distanceAlongCurveFromPeakToEnd / BLOB_STEP_SIZE)
+    # Draw the second half of the line
+    newEndX, newEndY = self.drawHalfOfALine(newPeakX, newPeakY, angleAtPeak, diffBetweenPeakAndEndAngles, numberOfStepsFromPeakToEnd)
+
+    # We want the trainning BLC to stay true to the sketch, not nessecarily the original procedural BLC
+    newPeakPointAsPercentage = Point(newPeakX / self.imageWidth, newPeakY / self.imageWidth)
+    newEndPointAsPercentage = Point(newEndX / self.imageWidth, newEndY / self.imageWidth)
+    return [newPeakPointAsPercentage, newEndPointAsPercentage]
+
+  
+  # Draws from the start of a line to its peak, or from the peak of a line to its end
+  def drawHalfOfALine(self, startX, startY, startAngle, totalAmountToRotate, numberOfBlobsToPlace):
     blobX = startX
     blobY = startY
     numberOfStepsLeftInSlip = 0
-    newPeakX = None
-    newPeakY = None
-    angleToNextBlob = None
-
-    # Calculate some constants and some inital values
-    angleFromStartToEnd = ArtificialArtist.calculateAngleBasedOnEndpoints(startX, startY, endX, endY)
-    angleFromStartToPeak = ArtificialArtist.calculateAngleBasedOnEndpoints(startX, startY, peakX, peakY)
-    optimalAngleAtStart = angleFromStartToPeak - (angleFromStartToEnd - angleFromStartToPeak)
-    linearDistanceFromStartToPeak = math.dist([startX, startY], [peakX, peakY])
-    linearDistanceFromPeakToEnd = math.dist([peakX, peakY], [endX, endY])
-    percentageStartToPeakIsBetweenLineAndSemicircle = np.min([np.abs(peakX - startX), np.abs(peakY - startY)]) / np.max([np.abs(peakX - startX), np.abs(peakY - startY)])
-    distanceAlongCurveFromStartToPeak = linearDistanceFromStartToPeak * (1.0 + (percentageStartToPeakIsBetweenLineAndSemicircle * 0.11))
-    numberOfStepsFromStartToPeak = round(distanceAlongCurveFromStartToPeak / BLOB_STEP_SIZE)
-
+    
     # Drop all the blobs
-    blobIndex = 0
-    while (not ArtificialArtist.haveReachedEnd(blobX, blobY, endX, endY) and not ArtificialArtist.havePassedEnd(startX, startY, blobX, blobY, endX, endY)):
-      # The first loop we'll use the pre-initialized values from above
-      if blobIndex != 0:
-        blobX = blobX + (BLOB_STEP_SIZE * np.cos(angleToNextBlob))
-        blobY = blobY + (BLOB_STEP_SIZE * np.sin(angleToNextBlob))
-      # The peak we draw might end up in a slightly different location than the peak we were given.
-      # We'll want to store the new location for future reference.
-      if (blobIndex + 1) == numberOfStepsFromStartToPeak:
-        newPeakX = blobX
-        newPeakY = blobY
-
-      # Calculate this blob's values based on the previous blobs
+    for blobIndex in range(numberOfBlobsToPlace):
+      # Calculate this blob's properties based on the previous blobs
       blobRadius = self.blobRadiusFluctuator.getNext()
       blobPressure = self.blobPressureFluctuator.getNext()
 
@@ -163,38 +174,21 @@ class ArtificialArtist:
         numberOfStepsLeftInSlip=numberOfStepsLeftInSlip,
         maxTexturingNoise=self.maxTexturingNoise)
 
-      # Although we won't be drawing a perfect line, we'll want to know what the remainning line would look like if it was perfect
-      optimalAngle = None
-      percentOfCompletedDistanceToNextTarget = None
-      if (blobIndex in range(numberOfStepsFromStartToPeak)):
-        # For the first half, our optimal angle will linearly shift from the intital angle to the angle at the peak
-        percentOfCompletedDistanceToPeak = (float(blobIndex) + 1.0) / float(numberOfStepsFromStartToPeak)
-        # The optimal angle is pased on the shortest path
-        shortestAngularDistance = ArtificialArtist.calculateShortestDistanceBetweenAngles(angleFromStartToEnd, optimalAngleAtStart)
-        optimalAngle = (percentOfCompletedDistanceToPeak * shortestAngularDistance) + optimalAngleAtStart
-        percentOfCompletedDistanceToNextTarget = percentOfCompletedDistanceToPeak
-      else:
-        # For the second half, our optimal angle will linearly shift from the angle at the peak to pointing at the end
-        linearDistanceLeftToEnd = math.dist([blobX, blobY], [endX, endY])
-        percentOfDistanceLeftToEnd = 1.0 - (linearDistanceLeftToEnd / linearDistanceFromPeakToEnd)
-        #this is going wrong!!!
-        #linearDistanceistanceToStart = math.dist([blobX, blobY], [startX, startY])
-        #percentOfDistanceFromStart = linearDistanceistanceToStart / linearDistanceFromPeakToEnd
-        angleToEnd = ArtificialArtist.calculateAngleBasedOnEndpoints(blobX, blobY, endX, endY)
-        shortestAngularDistance = ArtificialArtist.calculateShortestDistanceBetweenAngles(angleToEnd, angleFromStartToEnd)
-        optimalAngle = (percentOfDistanceLeftToEnd * shortestAngularDistance) + angleFromStartToEnd
-        percentOfCompletedDistanceToNextTarget = percentOfDistanceLeftToEnd
-      
-      # We want our line to be messy in the middle, but still hit the right angle at the peak
-      angleOffset = self.angleOffsetFluctuator.getNext()
-      angleOffsetWeight = 1.0 - math.pow((2.0 * percentOfCompletedDistanceToNextTarget) - 1.0, 4.0)
-      angleToNextBlob = optimalAngle + math.radians(angleOffset * angleOffsetWeight)
-      blobIndex += 1
-
-    # We want the trainning BLC to stay true to the sketch, not nessecarily the original procedural BLC.
-    newPeakPointAsPercentage = Point(newPeakX / self.imageWidth, newPeakY / self.imageWidth)
-    newEndPointAsPercentage = Point(blobX / self.imageWidth, blobY / self.imageWidth)
-    return [newPeakPointAsPercentage, newEndPointAsPercentage]
+      # Only calculate a new x and y if we haven't reached the end of this half of the lline
+      if blobIndex + 1 != numberOfBlobsToPlace:
+        # Although we won't be drawing a perfect line, we'll want to know what a perfect line would look like
+        percentOfWayToEnd = (float(blobIndex) + 1.0) / float(numberOfBlobsToPlace)
+        optimalAngleRightNow = (percentOfWayToEnd * totalAmountToRotate) + startAngle
+        
+        # We want our line to be messy in the middle, but still have the correct angle at certain key points
+        angleOffset = math.radians(self.angleOffsetFluctuator.getNext())
+        angleOffsetWeight = 1.0 - math.pow((2.0 * percentOfWayToEnd) - 1.0, 4.0)
+        angleToNextBlob = optimalAngleRightNow + (angleOffset * angleOffsetWeight)
+        blobX = blobX + (BLOB_STEP_SIZE * np.cos(angleToNextBlob))
+        blobY = blobY + (BLOB_STEP_SIZE * np.sin(angleToNextBlob))
+    
+    # Record where we ended up
+    return (blobX, blobY)
 
 
   # Drops an ink blob with the given specifications at the given location on the given canvas
@@ -228,20 +222,6 @@ class ArtificialArtist:
 
 
   @staticmethod
-  def haveReachedEnd(blobX, blobY, endX, endY):
-    return math.dist([blobX, blobY], [endX, endY]) < BLOB_STEP_SIZE
-
-
-  @staticmethod
-  def havePassedEnd(startX, startY, blobX, blobY, endX, endY):
-    distanceToEnd = math.dist([blobX, blobY], [endX, endY])
-    areInRangeOfEnd = distanceToEnd < (BLOB_STEP_SIZE * 8.0)
-    haveHorizontallyPasedEnd = np.abs(blobX - startX) > np.abs(endX - startX)
-    haveVerticallyPasedEnd = np.abs(blobY - startY) > np.abs(endY - startY)
-    return areInRangeOfEnd and haveHorizontallyPasedEnd and haveVerticallyPasedEnd
-
-
-  @staticmethod
   def calculateAngleBasedOnEndpoints(startX, startY, endX, endY):
     magnitude = math.dist([startX, startY], [endX, endY])
     horizontalVector = endX - startX
@@ -252,11 +232,10 @@ class ArtificialArtist:
 
 
   @staticmethod
-  def calculateShortestDistanceBetweenAngles(angleA, angleB):
-    _2pi = 2.0 * np.pi
-    option1 = angleA - angleB
-    option2 = ((angleA + np.pi) % _2pi) - ((angleB + np.pi) % _2pi)
-    if np.abs(option1) < np.abs(option2):
-      return option1
-    else:
-      return option2
+  def getAngleBetween(source, target):
+    a = target - source
+    if a > np.pi:
+      a -= 2.0 * np.pi
+    elif a < -1.0 * np.pi:
+      a += 2.0 * np.pi
+    return a
