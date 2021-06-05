@@ -11,7 +11,7 @@ BLOB_STEP_SIZE = 0.5
 NOISE_MULTIPLE_ON_SLIP = 0.6
 
 
-# Artificial artists sketch BLCs
+# Artificial artists draw BLCs
 class ArtificialArtist:
   # Creates a new, random artist
   @staticmethod
@@ -27,7 +27,7 @@ class ArtificialArtist:
       maxTexturingNoise=drawingSettings.maxTexturingNoise,
       slipThreshold=drawingSettings.slipThreshold,
       maxSlipPercentage=drawingSettings.maxSlipPercentage,
-      finalGaussianNoiseAmount=drawingSettings.finalGaussianNoiseAmount)
+      finalGaussianNoiseAmount=random.uniform(drawingSettings.finalGaussianNoiseAmount_min, drawingSettings.finalGaussianNoiseAmount_max))
   
 
   # Define the drawing settings in a way that can be passed around
@@ -39,7 +39,8 @@ class ArtificialArtist:
       maxTexturingNoise,
       slipThreshold,
       maxSlipPercentage,
-      finalGaussianNoiseAmount):
+      finalGaussianNoiseAmount_min,
+      finalGaussianNoiseAmount_max):
       # Just hang onto everything for a bit
       self.imageWidth = imageWidth
       self.blobRadiusFluctuatorConstraints = blobRadiusFluctuatorConstraints
@@ -48,10 +49,11 @@ class ArtificialArtist:
       self.maxTexturingNoise = maxTexturingNoise
       self.slipThreshold = slipThreshold
       self.maxSlipPercentage = maxSlipPercentage
-      self.finalGaussianNoiseAmount = finalGaussianNoiseAmount
+      self.finalGaussianNoiseAmount_min = finalGaussianNoiseAmount_min
+      self.finalGaussianNoiseAmount_max = finalGaussianNoiseAmount_max
 
 
-  # Crate a new artist
+  # Create a new artist
   def __init__(self, imageWidth, blobRadiusFluctuator, blobPressureFluctuator, angleOffsetFluctuator, maxTexturingNoise, slipThreshold, maxSlipPercentage, finalGaussianNoiseAmount):
     self.imageWidth = imageWidth
     self.blobRadiusFluctuator = blobRadiusFluctuator
@@ -70,12 +72,16 @@ class ArtificialArtist:
 
   # Draw the given BLC
   def drawBLC(self, perfectBLC):
+    # Slice some verties, and shift all the points
+    slicedAndShiftedBLC = ArtificialArtist.randomlySliceSetsAndShiftPoints(perfectBLC)
+
     # As we draw, due to randomness, we'll actually end up drawing a slightly different BLC than the given one
     updatedConnectedSets = []
 
-    for setIndex in range(len(perfectBLC.connectedSets)):
+    # Draw each connected set in this BLC
+    for setIndex in range(len(slicedAndShiftedBLC.connectedSets)):
       # Draw each line in the connected set
-      blcPoints = perfectBLC.connectedSets[setIndex].points
+      blcPoints = slicedAndShiftedBLC.connectedSets[setIndex].points
       nextLineStartPoint = blcPoints[0]
       updatedSetPoints = [blcPoints[0]]
       for i in range(1, len(blcPoints), 2):
@@ -89,7 +95,7 @@ class ArtificialArtist:
       # Record the BLC points, in this set, that we ended up drawing
       updatedConnectedSets.append(ConnectedSet(updatedSetPoints))
       
-    # Add some optional, overall noise
+    # Add some optional, overall Gaussain noise
     gaussianMask = np.random.normal(0, 255, (self.imageWidth, self.imageWidth))
     canvasWeight = 1.0 - self.finalGaussianNoiseAmount
     noiseWeight = self.finalGaussianNoiseAmount
@@ -219,6 +225,13 @@ class ArtificialArtist:
             # Apply this pixel's color
             self.canvasPixels[pixelX, pixelY] = pixelColor
             self.pixelToBlobDistanceMap[pixelX][pixelY] = distanceToThisPixel
+  
+
+  # Randomly split some vertices apart, and shift all the points around a little bit 
+  @staticmethod
+  def randomlySliceSetsAndShiftPoints(perfectBLC):
+    # TODO: Integerate the slice and shift code here!
+    return perfectBLC
 
 
   @staticmethod

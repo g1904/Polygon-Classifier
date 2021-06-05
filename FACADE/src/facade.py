@@ -2,7 +2,7 @@ import os
 from src.artificial_artist import ArtificialArtist
 
 
-# Fully Algorithmic, Completely Artificial Drawing Engine
+# Fully Algorithmic and Completely Artificial Drawing Engine
 class FACADE:
   def __init__(self, classPropertiesObjects, exportImageWidth, drawingSettings):
     self.classPropertiesObjects = classPropertiesObjects
