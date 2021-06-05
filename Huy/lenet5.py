@@ -13,7 +13,7 @@ from google.colab.patches import cv2_imshow
 import numpy as np
 from matplotlib import pyplot as plt
 from keras import models
-from keras import layers
+import keras.layers as layers
 from sklearn.metrics import classification_report, confusion_matrix
 import seaborn as sns
 from keras.callbacks import  EarlyStopping
@@ -55,7 +55,6 @@ print(x_train.shape)
 
 def create_model():
   model = tf.keras.Sequential()
- # model.add(layers.InputLayer(input_shape=(32,32,1)))
   model.add(layers.Conv2D(filters=6, kernel_size=(3, 3), activation='relu'))
   model.add(layers.AveragePooling2D())
 
@@ -86,5 +85,4 @@ model.fit(x_train,
           validation_data=(x_test,y_test),
           callbacks = [es])
 
-model.save("drive/MyDrive/Trained Model")
-
+model.save_weights("drive/MyDrive/LeNet 5 trained by MNIST/")
