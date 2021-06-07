@@ -205,6 +205,16 @@ class BLC:
 
   @staticmethod
   def traversePointsToCreateBLC(points):
+    # If there is only one line, then no need to do complicated calculations
+    if len(points) == 2:
+      startPoint = Point(points[0].x, points[0].y)
+      peakPoint = points[0].connectedLines[0].getPeakAsPoint()
+      endPoint = Point(points[1].x, points[1].y)
+      traversal = [startPoint, peakPoint, endPoint]
+      if random.random() < 0.5:
+        traversal.reverse()
+      return BLC(connectedSets=[ConnectedSet(traversal)])
+
     # Determine how many lines there are
     allLines = []
     for point in points:
