@@ -4,7 +4,7 @@ from scipy.stats import norm
 from PIL import Image
 import random
 from src.fluctuating_value import FluctuatingValue
-from src.blc import Point, ConnectedSet, BLC
+from src.blc import BLC_Utils, Point, ConnectedSet, BLC
 
 # Controls
 BLOB_STEP_SIZE = 0.5
@@ -19,11 +19,14 @@ class ArtificialArtist:
     return ArtificialArtist(
       imageWidth=drawingSettings.imageWidth,
       blobRadiusFluctuator=FluctuatingValue.newWithRandomParams(
-        drawingSettings.blobRadiusFluctuatorConstraints),
+        drawingSettings.blobRadiusFluctuatorConstraints,
+        drawingSettings.imageWidth),
       blobPressureFluctuator=FluctuatingValue.newWithRandomParams(
-        drawingSettings.blobPressureFluctuatorConstraints),
+        drawingSettings.blobPressureFluctuatorConstraints,
+        drawingSettings.imageWidth),
       angleOffsetFluctuator=FluctuatingValue.newWithRandomParams(
-        drawingSettings.angleOffsetFluctuatorConstraints),
+        drawingSettings.angleOffsetFluctuatorConstraints,
+        drawingSettings.imageWidth),
       maxTexturingNoise=drawingSettings.maxTexturingNoise,
       slipThreshold=drawingSettings.slipThreshold,
       maxSlipPercentage=drawingSettings.maxSlipPercentage,
@@ -81,14 +84,15 @@ class ArtificialArtist:
     # Draw each connected set in this BLC
     for setIndex in range(len(slicedAndShiftedBLC.connectedSets)):
       # Draw each line in the connected set
-      blcPoints = slicedAndShiftedBLC.connectedSets[setIndex].points
-      nextLineStartPoint = blcPoints[0]
-      updatedSetPoints = [blcPoints[0]]
-      for i in range(1, len(blcPoints), 2):
+      pointsInSet = slicedAndShiftedBLC.connectedSets[setIndex].points
+      nextLineStartPoint = pointsInSet[0]
+      updatedSetPoints = [pointsInSet[0]]
+      for i in range(1, len(pointsInSet), 2):
         startPoint = nextLineStartPoint
-        peakPoint = blcPoints[i]
-        endPoint = blcPoints[i + 1]
-        newPeakAndEndPoint = self.drawAWholeLine(startPoint, peakPoint, endPoint)
+        peakPoint = pointsInSet[i]
+        endPoint = pointsInSet[i + 1]
+        allowOverAndUnderShooting = (i == (len(pointsInSet) - 2))
+        newPeakAndEndPoint = self.drawAWholeLine(startPoint, peakPoint, endPoint, allowOverAndUnderShooting)
         nextLineStartPoint = newPeakAndEndPoint[1]
         updatedSetPoints.extend(newPeakAndEndPoint)
       
@@ -109,7 +113,7 @@ class ArtificialArtist:
 
 
   # Draw a line on the canvas
-  def drawAWholeLine(self, startPointPercentage, peakPointPercentage, endPointPercentage):
+  def drawAWholeLine(self, startPointPercentage, peakPointPercentage, endPointPercentage, allowOverAndUnderShooting):
     # We get values of 0-1 in for our x's and y's. We'll scale these up to pixel values
     startX = float(startPointPercentage.x) * self.imageWidth
     startY = float(startPointPercentage.y) * self.imageWidth
@@ -132,7 +136,7 @@ class ArtificialArtist:
     distanceAlongCurveFromStartToPeak = linearDistanceFromStartToPeak * amountToInflateLinearDistanceToPeak
     numberOfStepsFromStartToPeak = round(distanceAlongCurveFromStartToPeak / BLOB_STEP_SIZE)
     # Draw the first half of the line
-    newPeakX, newPeakY = self.drawHalfOfALine(startX, startY, angleAtStart, diffBetweenStartAndPeakAngles, numberOfStepsFromStartToPeak)
+    newPeakX, newPeakY = self.drawHalfOfALine(startX, startY, angleAtStart, diffBetweenStartAndPeakAngles, numberOfStepsFromStartToPeak, False)
 
     # Draw the second half of the line
     # Calculate the nessecary angles for the second half of the line
@@ -144,7 +148,7 @@ class ArtificialArtist:
     distanceAlongCurveFromPeakToEnd = linearDistanceFromPeakToEnd * amountToInflateLinearDistanceToEnd
     numberOfStepsFromPeakToEnd = round(distanceAlongCurveFromPeakToEnd / BLOB_STEP_SIZE)
     # Draw the second half of the line
-    newEndX, newEndY = self.drawHalfOfALine(newPeakX, newPeakY, angleAtPeak, diffBetweenPeakAndEndAngles, numberOfStepsFromPeakToEnd)
+    newEndX, newEndY = self.drawHalfOfALine(newPeakX, newPeakY, angleAtPeak, diffBetweenPeakAndEndAngles, numberOfStepsFromPeakToEnd, allowOverAndUnderShooting)
 
     # We want the trainning BLC to stay true to the sketch, not nessecarily the original procedural BLC
     newPeakPointAsPercentage = Point(newPeakX / self.imageWidth, newPeakY / self.imageWidth)
@@ -153,15 +157,22 @@ class ArtificialArtist:
 
   
   # Draws from the start of a line to its peak, or from the peak of a line to its end
-  def drawHalfOfALine(self, startX, startY, startAngle, totalAmountToRotate, numberOfBlobsToPlace):
+  def drawHalfOfALine(self, startX, startY, startAngle, totalAmountToRotate, numberOfBlobsToPlace, allowOverAndUnderShooting):
     blobX = startX
     blobY = startY
     numberOfStepsLeftInSlip = 0
+
+    # Calculate over/under shooting
+    if allowOverAndUnderShooting:
+      maxOverShoot = 0.1 * numberOfBlobsToPlace
+      overshootAmount = round(BLC_Utils.randRange(-1.5 * maxOverShoot, maxOverShoot))
+      numberOfBlobsToPlace += overshootAmount
+
     
     # Drop all the blobs
     for blobIndex in range(numberOfBlobsToPlace):
       # Calculate this blob's properties based on the previous blobs
-      blobRadius = self.blobRadiusFluctuator.getNext()
+      blobRadius = self.imageWidth * (self.blobRadiusFluctuator.getNext() / 100.0)
       blobPressure = self.blobPressureFluctuator.getNext()
 
       # Handle artificial pen slips
@@ -230,8 +241,56 @@ class ArtificialArtist:
   # Randomly split some vertices apart, and shift all the points around a little bit 
   @staticmethod
   def randomlySliceSetsAndShiftPoints(perfectBLC):
-    # TODO: Integerate the slice and shift code here!
-    return perfectBLC
+    initialConnectedSets = perfectBLC.connectedSets
+    finalConnectedSets = []
+
+    # Randomly split up some of the existing sets
+    for connectedSet in initialConnectedSets:
+      numberOfVertices = math.floor((len(connectedSet.points) + 1) / 2)
+      chanceOfSplitingAnyVertex = 1.0 / 5.0
+
+      indexOfLastSplit = 0
+      for vertexIndex in range(2, len(connectedSet.points) - 2, 2):
+        if random.random() <= chanceOfSplitingAnyVertex:
+          # Clone and disconnect at the current vertex
+          newSet = connectedSet.points[indexOfLastSplit:vertexIndex]
+          pointX, pointY = connectedSet.points[vertexIndex].position
+          newSet.append(Point(pointX, pointY))
+          finalConnectedSets.append(ConnectedSet(newSet))
+          indexOfLastSplit = vertexIndex
+      newSet = connectedSet.points[indexOfLastSplit:(len(connectedSet.points))]
+      finalConnectedSets.append(ConnectedSet(newSet))
+
+    # Randomly reverse some of the sets
+    for connectedSet in finalConnectedSets:
+      if random.random() < 0.5:
+        connectedSet.points.reverse()
+
+    # Randomly shift all the verticies and peaks little bit
+    for connectedSet in finalConnectedSets:
+      for pointIndex in range(len(connectedSet.points)):
+        offsetRange = None
+        if pointIndex == 0 or pointIndex == len(connectedSet.points) - 1:
+          offsetRange = 0.05
+        elif pointIndex % 2 == 1:
+          offsetRange = 0.0065
+        else:
+          offsetRange = 0.0175
+        offsetX = BLC_Utils.randRange(-1.0 * offsetRange, offsetRange)
+        offsetY = BLC_Utils.randRange(-1.0 * offsetRange, offsetRange)
+        connectedSet.points[pointIndex].x += offsetX
+        connectedSet.points[pointIndex].y += offsetY
+
+    # Randomly shift the whole shape a bit
+    shapeOffsetX = BLC_Utils.randRange(-0.075, 0.075)
+    shapeOffsetY = BLC_Utils.randRange(-0.075, 0.075)
+    for connectedSet in finalConnectedSets:
+      for point in connectedSet.points:
+        point.x += shapeOffsetX
+        point.y += shapeOffsetY
+
+    # Return a new BLC
+    return BLC(finalConnectedSets)
 
 
   @staticmethod

@@ -4,19 +4,20 @@ import numpy as np
 # Manages a single fluctuation value
 class FluctuatingValue:
   @staticmethod
-  def newWithRandomParams(randomFluctuatorConstraints):
+  def newWithRandomParams(randomFluctuatorConstraints, imageWidth):
     # "randomFluctuatorConstraints" is to long a name, internally let's use something simpler 
     limits = randomFluctuatorConstraints
 
     # Get random props within the given ranges
     averageValue = random.uniform(limits.averageValue_min, limits.averageValue_max)
     maxDeviationFromAverage = random.uniform(limits.maxDeviationFromAverage_min, limits.maxDeviationFromAverage_max)
-    maxChangePercentage = random.uniform(limits.maxChangePercentage_min, limits.maxChangePercentage_max)
+    maxPercentChangePerPercent = random.uniform(limits.maxPercentChangePerPercent_max, limits.maxPercentChangePerPercent_max) 
+    maxPercentChangePerBlob = maxPercentChangePerPercent * (100.0 / imageWidth)
 
     # Use the random props from above to generate a new fluctuating value
     minValue = averageValue - maxDeviationFromAverage
     maxValue = averageValue + maxDeviationFromAverage
-    maxChangeDelta = maxChangePercentage * (maxValue - minValue)
+    maxChangeDelta = maxPercentChangePerBlob * (maxValue - minValue)
     return FluctuatingValue(minValue, maxValue, maxChangeDelta)
   
 
@@ -25,14 +26,14 @@ class FluctuatingValue:
     def __init__(self, 
       averageValue_min, averageValue_max,
       maxDeviationFromAverage_min, maxDeviationFromAverage_max,
-      maxChangePercentage_min, maxChangePercentage_max):
+      maxPercentChangePerPercent_min, maxPercentChangePerPercent_max):
       # Just hang onto everything for a bit
       self.averageValue_min = averageValue_min
       self.averageValue_max = averageValue_max
       self.maxDeviationFromAverage_min = maxDeviationFromAverage_min
       self.maxDeviationFromAverage_max = maxDeviationFromAverage_max
-      self.maxChangePercentage_min = maxChangePercentage_min
-      self.maxChangePercentage_max = maxChangePercentage_max
+      self.maxPercentChangePerPercent_min = maxPercentChangePerPercent_min
+      self.maxPercentChangePerPercent_max = maxPercentChangePerPercent_max
     
 
   # Create a new fluctuating value
