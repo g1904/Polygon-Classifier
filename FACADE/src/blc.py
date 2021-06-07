@@ -5,30 +5,47 @@ import random
 import numpy as np
 from types import SimpleNamespace
 
+from numpy.random import rand
+
 
 class BLC_Utils:
- @staticmethod
- def randRange(min, max):
-  return random.uniform(min, max)
+  @staticmethod
+  def randRange(min, max):
+    return random.uniform(min, max)
  
  
- @staticmethod
- def randDev(average, maxDeviation):
-  min = average - maxDeviation
-  max = average + maxDeviation
-  return random.uniform(min, max)
+  @staticmethod
+  def randDev(average, maxDeviation):
+    min = average - maxDeviation
+    max = average + maxDeviation
+    return random.uniform(min, max)
 
 
- @staticmethod
- def calculateAngleBasedOnEndpoints(startPosition, endPosition):
-  startX, startY = startPosition
-  endX, endY = endPosition
-  magnitude = math.dist([startX, startY], [endX, endY])
-  horizontalVector = endX - startX
-  if endY > startY:
-   return np.arccos(horizontalVector / magnitude)
-  else:
-   return (2.0 * np.pi) - np.arccos(horizontalVector / magnitude)
+  @staticmethod
+  def calculateAngleBasedOnEndpoints(startPosition, endPosition):
+    startX, startY = startPosition
+    endX, endY = endPosition
+    magnitude = math.dist([startX, startY], [endX, endY])
+    horizontalVector = endX - startX
+    if endY > startY:
+      return np.arccos(horizontalVector / magnitude)
+    else:
+      return (2.0 * np.pi) - np.arccos(horizontalVector / magnitude)
+
+
+  # Based on: https://stackoverflow.com/questions/34372480/rotate-point-about-another-point-in-degrees-python
+  @staticmethod # Uses degrees not radians
+  def rotatePointsAroundOrigin(points, angle):
+    angle = np.deg2rad(angle)
+    originX, originY = (0.5, 0.5)
+
+    for point in points:
+      oldX, oldY = point.position
+
+      newX = originX + math.cos(angle) * (oldX - originX) - math.sin(angle) * (oldY - originY)
+      newY = originY + math.sin(angle) * (oldX - originX) + math.cos(angle) * (oldY - originY)
+      point.x = newX
+      point.y = newY
 
 
 
@@ -197,9 +214,14 @@ class BLC:
     totalLineCount = len(allLines)
 
     # Create a traversal of the points
-    currentPoint = points[random.randint(0, len(points) - 1)]
+    currentPoint = None
+    if random.random() < 0.3:
+      currentPoint = points[0]
+    elif random.random() < 0.5:
+      currentPoint = points[len(points) - 1]
+    else:
+      currentPoint = points[random.randint(1, len(points) - 2)]
     traversal = [Point(currentPoint.x, currentPoint.y)]
-    lastTraversedLine = None
     allTraversedLines = []
     while len(allTraversedLines) < totalLineCount:
       # Sort the options at this point based on whether or not they have been traversed
@@ -216,29 +238,90 @@ class BLC:
       if len(untraversedOptions) > 0:
         lineToTraverseNext = untraversedOptions[random.randint(0, len(untraversedOptions) - 1)]
         allTraversedLines.append(lineToTraverseNext)
-      else:
-        preferredAlreadyTraversedOptions = copy.copy(alreadyTraversedOptions)
-        if lastTraversedLine != None:
-          preferredAlreadyTraversedOptions.remove(lastTraversedLine)
-        if len(preferredAlreadyTraversedOptions) > 0:
-          lineToTraverseNext = preferredAlreadyTraversedOptions[random.randint(0, len(preferredAlreadyTraversedOptions) - 1)]
+        peakPoint = lineToTraverseNext.getPeakAsPoint()
+        # Find the point at the other end of this line
+        pointA = lineToTraverseNext.startPoint
+        pointB = lineToTraverseNext.endPoint
+        nextPointToGoTo = None
+        if currentPoint == pointA:
+          nextPointToGoTo = pointB
         else:
-          lineToTraverseNext = lastTraversedLine
-      
-      # Record the chosen route
-      peakPoint = lineToTraverseNext.getPeakAsPoint()
-      pointA = lineToTraverseNext.startPoint
-      pointB = lineToTraverseNext.endPoint
-      nextPointToGoTo = None
-      if currentPoint == pointA:
-        nextPointToGoTo = pointB
+          nextPointToGoTo = pointA
+        traversal.extend([peakPoint, nextPointToGoTo])
       else:
-        nextPointToGoTo = pointA
-      traversal.extend([peakPoint, Point(nextPointToGoTo.x, nextPointToGoTo.y)])
+        # Find the closest untraversed line
+        possiblePathsToUntraversedLine = []
+        allCheckedLines = []
+        pathsAtEachDistance = [[[currentPoint]]]
+        haveFoundUntraversedLine = False
+        while not haveFoundUntraversedLine:
+          pathsAtCurrentDistance = []
+          for path in pathsAtEachDistance[-1]:
+            for lineToCheck in path[-1].connectedLines:
+              if not lineToCheck in allCheckedLines:
+                peakPoint = lineToCheck.getPeakAsPoint()
+                # Find the point at the other end of this line
+                pointA = lineToCheck.startPoint
+                pointB = lineToCheck.endPoint
+                endPoint = None
+                if path[-1] == pointA:
+                  endPoint = pointB
+                else:
+                  endPoint = pointA
+                
+                if lineToCheck in allTraversedLines:
+                  newPossiblePath = copy.copy(path)
+                  newPossiblePath.extend([peakPoint, endPoint])
+                  pathsAtCurrentDistance.append(newPossiblePath)
+                  allCheckedLines.append(lineToCheck)
+                else:
+                  haveFoundUntraversedLine = True
+                  possiblePathsToUntraversedLine.append(path)
+                  break
+          pathsAtEachDistance.append(pathsAtCurrentDistance)
+        
+        # Randomly pick one of the viable paths
+        chosenPath = possiblePathsToUntraversedLine[random.randint(0, len(possiblePathsToUntraversedLine) - 1)]
+        del chosenPath[0]
+        traversal.extend(chosenPath)
+        nextPointToGoTo = chosenPath[-1]
 
       # Continue traversing
       currentPoint = nextPointToGoTo
-      lastTraversedLine = lineToTraverseNext
     
+    # This wipes the storred connections off of all the points. We need these to be gone, or our BLC won't be serializable
+    for pointIndex in range(len(traversal)):
+      traversal[pointIndex] = Point(traversal[pointIndex].x, traversal[pointIndex].y)
+
     # Create the BLC
     return BLC(connectedSets=[ConnectedSet(traversal)])
+
+  #def getPathToClosestUntraversedLine(currentPoint, allTraversedLines):
+  #  bestTraversal = [currentPoint]
+
+  #  uncheckedLines = copy.copy(currentPoint.connectedLines)
+  #  while len(uncheckedLines) > 0:
+      # Get this line
+  #    indexOfLineToCheck = random.randint(0, len(uncheckedLines) - 1)
+  #    lineToCheck = uncheckedLines[indexOfLineToCheck]
+  #    del uncheckedLines[indexOfLineToCheck]
+
+      # Get the other point
+  #    pointA = lineToCheck.startPoint
+  #    pointB = lineToCheck.endPoint
+  #    otherPoint = None
+  #    if currentPoint == pointA:
+  #      otherPoint = pointB
+  #    else:
+  #      otherPoint = pointA
+      
+      # Traverse the sub lines
+  #    if line in allTraversedLines:
+  #    else:
+      
+
+
+  #  for line in currentPoint.connectedLines:
+      
+  #    if line in allTraversedLines:
+  #    else:
