@@ -1,0 +1,68 @@
+Initial Test - Loss: 2.3247, Accuracy: 5.76%
+
+Epoch: 0
+Trainning - Loss: 0.9314, Accuracy: 68.25%
+Test - Loss: 0.8667, Accuracy: 75.29%
+
+Epoch: 1
+Trainning - Loss: 0.3452, Accuracy: 88.47%
+Test - Loss: 0.7300, Accuracy: 78.95%
+
+Epoch: 2
+Trainning - Loss: 0.2269, Accuracy: 92.47%
+Test - Loss: 0.8152, Accuracy: 81.69%
+
+Epoch: 3
+Trainning - Loss: 0.1721, Accuracy: 94.17%
+Test - Loss: 0.7536, Accuracy: 82.55%
+
+Epoch: 4
+Trainning - Loss: 0.1411, Accuracy: 95.18%
+Test - Loss: 0.8062, Accuracy: 82.89%
+
+Epoch: 5
+Trainning - Loss: 0.1237, Accuracy: 95.89%
+Test - Loss: 0.6598, Accuracy: 86.30%
+
+Epoch: 6
+Trainning - Loss: 0.1015, Accuracy: 96.57%
+Test - Loss: 0.8261, Accuracy: 85.39%
+
+Epoch: 7
+Trainning - Loss: 0.0932, Accuracy: 96.92%
+Test - Loss: 0.8545, Accuracy: 85.01%
+
+Epoch: 8
+Trainning - Loss: 0.0846, Accuracy: 97.24%
+Test - Loss: 0.8301, Accuracy: 84.45%
+
+Epoch: 9
+Trainning - Loss: 0.0748, Accuracy: 97.58%
+Test - Loss: 0.8038, Accuracy: 84.89%
+
+Epoch: 10
+Trainning - Loss: 0.0697, Accuracy: 97.60%
+Test - Loss: 1.0293, Accuracy: 82.86%
+
+Epoch: 11
+Trainning - Loss: 0.0617, Accuracy: 97.84%
+Test - Loss: 0.7255, Accuracy: 87.78%
+
+Epoch: 12
+Trainning - Loss: 0.0581, Accuracy: 98.02%
+Test - Loss: 1.0947, Accuracy: 83.45%
+
+Epoch: 13
+Trainning - Loss: 0.0533, Accuracy: 98.15%
+Test - Loss: 0.9218, Accuracy: 85.95%
+
+Epoch: 14
+Trainning - Loss: 0.0446, Accuracy: 98.47%
+Test - Loss: 0.8970, Accuracy: 86.25%
+
+Epoch: 15
+Trainning - Loss: 0.0439, Accuracy: 98.53%
+Test - Loss: 0.9813, Accuracy: 86.51%
+
+Tranning finished! Used weights from epoch 5.
+Final Test - Loss: 0.6598, Accuracy: 86.30%

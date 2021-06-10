@@ -4,7 +4,6 @@ import math
 import random
 import numpy as np
 from types import SimpleNamespace
-
 from numpy.random import rand
 
 
@@ -46,6 +45,24 @@ class BLC_Utils:
       newY = originY + math.sin(angle) * (oldX - originX) + math.cos(angle) * (oldY - originY)
       point.x = newX
       point.y = newY
+  
+  @staticmethod
+  def mirrorPoints(points, shouldMirrorHorizontal, shouldMirrorVertical):
+    allLines = []
+    for point in points:
+      if shouldMirrorHorizontal:
+        point.x = 1.0 - point.x
+      if shouldMirrorVertical:
+        point.y = 1.0 - point.y
+      for line in point.connectedLines:
+        if not line in allLines:
+          allLines.append(line)
+
+    if shouldMirrorHorizontal != shouldMirrorVertical:
+      for line in allLines:
+        line.peakMagnitude = -1.0 * line.peakMagnitude
+        line.peakOffset = -1.0 * line.peakOffset
+    
 
 
 
@@ -53,7 +70,7 @@ class BLC_Utils:
 class Point:
   def __init__(self, x, y):
     if (x < 0 or x > 1 or y < 0 or y > 1):
-      raise ValueError('values for x and y have to be between 0 and 1 inclusive')
+      print('Warnning! Values for x and y have to be between 0 and 1 inclusive.')
    
     self.x = x
     self.y = y
