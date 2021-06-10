@@ -13,24 +13,19 @@ class FACADE:
   drawingSettings=ArtificialArtist.DrawingSettings(
     imageWidth=32,
     blobRadiusFluctuatorConstraints=FluctuatingValue.RandomFluctuatorConstraints(
-      averageValue_min=2.0, averageValue_max=12.0,
+      averageValue_min=2.68, averageValue_max=7.0,
       maxDeviationFromAverage_min=0.1, maxDeviationFromAverage_max=2.5,
       maxPercentChangePerPercent_min=0.0001, maxPercentChangePerPercent_max=0.0075),
-    #blobPressureFluctuatorConstraints=FluctuatingValue.RandomFluctuatorConstraints(
-    #  averageValue_min=0.6, averageValue_max=0.95,
-    #  maxDeviationFromAverage_min=0.015, maxDeviationFromAverage_max=0.4,
-    #  maxPercentChangePerPercent_min=0.00025, maxPercentChangePerPercent_max=0.006),
     blobPressureFluctuatorConstraints=FluctuatingValue.RandomFluctuatorConstraints(
-      averageValue_min=0.85, averageValue_max=0.95,
-      maxDeviationFromAverage_min=0.015, maxDeviationFromAverage_max=0.05,
-      maxPercentChangePerPercent_min=0.00025, maxPercentChangePerPercent_max=0.006),
+      averageValue_min=0.6, averageValue_max=0.9,
+      maxDeviationFromAverage_min=0.05, maxDeviationFromAverage_max=0.4,
+      maxPercentChangePerPercent_min=0.001, maxPercentChangePerPercent_max=0.005),
     angleOffsetFluctuatorConstraints=FluctuatingValue.RandomFluctuatorConstraints(
       averageValue_min=0.0, averageValue_max=0.0,
-      maxDeviationFromAverage_min=5.0, maxDeviationFromAverage_max=25.0,
-      maxPercentChangePerPercent_min=0.00025, maxPercentChangePerPercent_max=0.006),
+      maxDeviationFromAverage_min=5.0, maxDeviationFromAverage_max=20.0,
+      maxPercentChangePerPercent_min=0.001, maxPercentChangePerPercent_max=0.005),
     maxTexturingNoise=random.uniform(0.1, 0.2),
-    #slipThreshold=random.uniform(0.0, 0.05),
-    slipThreshold=0.0,
+    slipThreshold=random.uniform(0.0, 0.05),
     maxSlipPercentage=random.uniform(0.025, 0.075),
     finalGaussianNoiseAmount_min=0.0,
     finalGaussianNoiseAmount_max=0.02)):
@@ -85,33 +80,17 @@ class FACADE:
 
     # Draw a bunch of images in this class
     for drawingIndex in range(imageCount):
-      wasSuccessful = False
-      while not wasSuccessful:
-        # Generate the inital BLC
-        blcCreatioWasSuccessful = True
-        perfectBLC = classProps.generateAPerfectBLC()
-        # Determine whether or not we've accidentally gone out of bounds
-        for connectedSet in perfectBLC.connectedSets:
-          for point in connectedSet.points:
-            if point.x < 0.025 or point.x > 0.975 or point.y < 0.025 or point.y > 0.975:
-              blcCreatioWasSuccessful = False
-              break
-          if not blcCreatioWasSuccessful:
-            break
-        if not blcCreatioWasSuccessful:
-          break
+      # Generate the drawing
+      perfectBLC = classProps.generateAPerfectBLC()
+      artist = ArtificialArtist.newWithRandomParams(drawingSettings)
+      drawing, blcAfterDrawing = artist.drawBLC(perfectBLC)
 
-        # Draw the shape
-        artist = ArtificialArtist.newWithRandomParams(drawingSettings)
-        wasSuccessful, drawing, blcAfterDrawing = artist.drawBLC(perfectBLC)
-
-        if wasSuccessful:
-          # Save the drawing
-          outputImagePath = '%s/%s_%d.jpg'%(imageOutputDirectoryPathForClass, classProps.className, drawingIndex)
-          outputImage = drawing.resize(exportImageSize)
-          outputImage.save(outputImagePath)
-          outputBLCPath = '%s/%s_%d.json'%(blcOutputDirectoryPathForClass, classProps.className, drawingIndex)
-          blcAfterDrawing.save(outputBLCPath)
+      # Save the drawing
+      outputImagePath = '%s/%s_%d.jpg'%(imageOutputDirectoryPathForClass, classProps.className, drawingIndex)
+      outputImage = drawing.resize(exportImageSize)
+      outputImage.save(outputImagePath)
+      outputBLCPath = '%s/%s_%d.json'%(blcOutputDirectoryPathForClass, classProps.className, drawingIndex)
+      blcAfterDrawing.save(outputBLCPath)
   
 
   # Make a direcotry if it does not exists

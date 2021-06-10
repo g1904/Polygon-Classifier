@@ -78,52 +78,38 @@ class ArtificialArtist:
     # Slice some verties, and shift all the points
     slicedAndShiftedBLC = ArtificialArtist.randomlySliceSetsAndShiftPoints(perfectBLC)
 
-    # Determine whether or not we'v accidentally gone out of bounds
-    updatedBLCIsOutOfBounds = False
-    for connectedSet in slicedAndShiftedBLC.connectedSets:
-      for point in connectedSet.points:
-        if point.x < 0.01 or point.x > 0.99 or point.y < 0.01 or point.y > 0.99:
-          updatedBLCIsOutOfBounds = True
-          break
-      if updatedBLCIsOutOfBounds:
-        break
-    
-    # Handle out of bounds
-    if updatedBLCIsOutOfBounds:
-      return False, None, None
-    else:
-      # As we draw, due to randomness, we'll actually end up drawing a slightly different BLC than the given one
-      updatedConnectedSets = []
+    # As we draw, due to randomness, we'll actually end up drawing a slightly different BLC than the given one
+    updatedConnectedSets = []
 
-      # Draw each connected set in this BLC
-      for setIndex in range(len(slicedAndShiftedBLC.connectedSets)):
-        # Draw each line in the connected set
-        pointsInSet = slicedAndShiftedBLC.connectedSets[setIndex].points
-        nextLineStartPoint = pointsInSet[0]
-        updatedSetPoints = [pointsInSet[0]]
-        for i in range(1, len(pointsInSet), 2):
-          startPoint = nextLineStartPoint
-          peakPoint = pointsInSet[i]
-          endPoint = pointsInSet[i + 1]
-          allowOverAndUnderShooting = (i == (len(pointsInSet) - 2))
-          newPeakAndEndPoint = self.drawAWholeLine(startPoint, peakPoint, endPoint, allowOverAndUnderShooting)
-          nextLineStartPoint = newPeakAndEndPoint[1]
-          updatedSetPoints.extend(newPeakAndEndPoint)
-        
-        # Record the BLC points, in this set, that we ended up drawing
-        updatedConnectedSets.append(ConnectedSet(updatedSetPoints))
-        
-      # Add some optional, overall Gaussain noise
-      gaussianMask = np.random.normal(0, 255, (self.imageWidth, self.imageWidth))
-      canvasWeight = 1.0 - self.finalGaussianNoiseAmount
-      noiseWeight = self.finalGaussianNoiseAmount
-      for x in range(self.imageWidth):
-        for y in range(self.imageWidth):
-          self.canvasPixels[x, y] = math.floor(np.average([self.canvasPixels[x, y], gaussianMask[x][y]], weights=[canvasWeight, noiseWeight]))
+    # Draw each connected set in this BLC
+    for setIndex in range(len(slicedAndShiftedBLC.connectedSets)):
+      # Draw each line in the connected set
+      pointsInSet = slicedAndShiftedBLC.connectedSets[setIndex].points
+      nextLineStartPoint = pointsInSet[0]
+      updatedSetPoints = [pointsInSet[0]]
+      for i in range(1, len(pointsInSet), 2):
+        startPoint = nextLineStartPoint
+        peakPoint = pointsInSet[i]
+        endPoint = pointsInSet[i + 1]
+        allowOverAndUnderShooting = (i == (len(pointsInSet) - 2))
+        newPeakAndEndPoint = self.drawAWholeLine(startPoint, peakPoint, endPoint, allowOverAndUnderShooting)
+        nextLineStartPoint = newPeakAndEndPoint[1]
+        updatedSetPoints.extend(newPeakAndEndPoint)
       
-      # Return the image, as well as a descritpion of the actual BLC we ended up drawing
-      updatedBLC = BLC(updatedConnectedSets)
-      return (True, self.canvas, updatedBLC)
+      # Record the BLC points, in this set, that we ended up drawing
+      updatedConnectedSets.append(ConnectedSet(updatedSetPoints))
+      
+    # Add some optional, overall Gaussain noise
+    gaussianMask = np.random.normal(0, 255, (self.imageWidth, self.imageWidth))
+    canvasWeight = 1.0 - self.finalGaussianNoiseAmount
+    noiseWeight = self.finalGaussianNoiseAmount
+    for x in range(self.imageWidth):
+      for y in range(self.imageWidth):
+        self.canvasPixels[x, y] = math.floor(np.average([self.canvasPixels[x, y], gaussianMask[x][y]], weights=[canvasWeight, noiseWeight]))
+    
+    # Return the image, as well as a descritpion of the actual BLC we ended up drawing
+    updatedBLC = BLC(updatedConnectedSets)
+    return (self.canvas, updatedBLC)
 
 
   # Draw a line on the canvas
@@ -165,10 +151,6 @@ class ArtificialArtist:
     newEndX, newEndY = self.drawHalfOfALine(newPeakX, newPeakY, angleAtPeak, diffBetweenPeakAndEndAngles, numberOfStepsFromPeakToEnd, allowOverAndUnderShooting)
 
     # We want the trainning BLC to stay true to the sketch, not nessecarily the original procedural BLC
-    if 0.0 > newEndX / self.imageWidth or 1.0 < newEndX / self.imageWidth or 0.0 > newEndY / self.imageWidth or 1.0 < newEndY / self.imageWidth:
-      print('End - x: %.3f, y: %.3f'%(newEndX / self.imageWidth, newEndY / self.imageWidth))
-    if 0.0 > newPeakX / self.imageWidth or 1.0 < newPeakX / self.imageWidth or 0.0 > newPeakY / self.imageWidth or 1.0 < newPeakY / self.imageWidth:
-      print('Peak - x: %.3f, y: %.3f'%(newPeakX / self.imageWidth, newPeakY / self.imageWidth))
     newPeakPointAsPercentage = Point(newPeakX / self.imageWidth, newPeakY / self.imageWidth)
     newEndPointAsPercentage = Point(newEndX / self.imageWidth, newEndY / self.imageWidth)
     return [newPeakPointAsPercentage, newEndPointAsPercentage]
@@ -182,7 +164,7 @@ class ArtificialArtist:
 
     # Calculate over/under shooting
     if allowOverAndUnderShooting:
-      maxOverShoot = 0.065 * numberOfBlobsToPlace
+      maxOverShoot = 0.1 * numberOfBlobsToPlace
       overshootAmount = round(BLC_Utils.randRange(-1.5 * maxOverShoot, maxOverShoot))
       numberOfBlobsToPlace += overshootAmount
 
@@ -289,11 +271,11 @@ class ArtificialArtist:
       for pointIndex in range(len(connectedSet.points)):
         offsetRange = None
         if pointIndex == 0 or pointIndex == len(connectedSet.points) - 1:
-          offsetRange = 0.035
+          offsetRange = 0.05
         elif pointIndex % 2 == 1:
           offsetRange = 0.0065
         else:
-          offsetRange = 0.015
+          offsetRange = 0.0175
         offsetX = BLC_Utils.randRange(-1.0 * offsetRange, offsetRange)
         offsetY = BLC_Utils.randRange(-1.0 * offsetRange, offsetRange)
         connectedSet.points[pointIndex].x += offsetX
