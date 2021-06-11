@@ -77,20 +77,33 @@ def generateAPerfectRectangle():
   allPointsInShape = [pointA, pointB, pointC, pointD]
   BLC_Utils.rotatePointsAroundOrigin(allPointsInShape, BLC_Utils.randRange(-7.0, 7.0))
   return BLC.traversePointsToCreateBLC([pointA, pointB, pointC, pointD])
+
+def generateAPerfectDiamond():
+  # Create the points and lines
+  pointA = Point(BLC_Utils.randDev(0.50, 0.05), BLC_Utils.randDev(0.20, 0.05))
+  pointB = Point(BLC_Utils.randDev(0.80, 0.05), BLC_Utils.randDev(0.50, 0.05))
+  pointC = Point(BLC_Utils.randDev(0.50, 0.05), BLC_Utils.randDev(0.80, 0.05))
+  pointD = Point(BLC_Utils.randDev(0.20, 0.05), BLC_Utils.randDev(0.50, 0.05))
+  lineAB = Line(pointA, pointB)
+  lineBC = Line(pointB, pointC)
+  lineCD = Line(pointC, pointD)
+  lineDA = Line(pointD, pointA)
+  # Return the BLC
+  return BLC.traversePointsToCreateBLC([pointA, pointB, pointC, pointD])
   
 def generateAPerfectHexagon():
     
   allPointsInShape = None
   # Create the points and lines
   # if statements not necessary with rotation
-  if random.random() < 0.5: # pointy top
+  if random.random() < 0.5: # pointy end up
       pointA = Point(BLC_Utils.randDev(0.50, 0.05), BLC_Utils.randDev(0.20, 0.05)) 
       pointB = Point(BLC_Utils.randDev(0.70, 0.05), BLC_Utils.randDev(0.30, 0.05)) 
       pointC = Point(BLC_Utils.randDev(0.70, 0.05), BLC_Utils.randDev(0.70, 0.05)) 
       pointD = Point(BLC_Utils.randDev(0.50, 0.05), BLC_Utils.randDev(0.80, 0.05)) 
       pointE = Point(BLC_Utils.randDev(0.30, 0.05), BLC_Utils.randDev(0.70, 0.05)) 
       pointF = Point(BLC_Utils.randDev(0.30, 0.05), BLC_Utils.randDev(0.30, 0.05)) 
-  else: # wide side at the top
+  else: # pointy end sideways
       pointA = Point(BLC_Utils.randDev(0.30, 0.05), BLC_Utils.randDev(0.30, 0.05)) 
       pointB = Point(BLC_Utils.randDev(0.70, 0.05), BLC_Utils.randDev(0.30, 0.05)) 
       pointC = Point(BLC_Utils.randDev(0.80, 0.05), BLC_Utils.randDev(0.50, 0.05)) 
@@ -181,6 +194,7 @@ if __name__ == '__main__':
     FACADE.ClassPropertiesObject('triangle', generateAPerfectTriangle),
     FACADE.ClassPropertiesObject('square', generateAPerfectSquare),
     FACADE.ClassPropertiesObject('rectangle', generateAPerfectRectangle),
+    FACADE.ClassPropertiesObject('diamond', generateAPerfectDiamond),
     FACADE.ClassPropertiesObject('hexagon', generateAPerfectHexagon),
     FACADE.ClassPropertiesObject('octagon', generateAPerfectOctagon),
     FACADE.ClassPropertiesObject('circle', generateAPerfectCircle)
