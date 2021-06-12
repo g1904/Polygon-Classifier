@@ -3,7 +3,7 @@ from PIL import Image
 
 # Controls
 inputImageBasePath = 'data/neat-set-'
-outputBasePath = 'NeatSet/neat-set-'
+outputBasePath = 'NeatSet/'
 authorName = ['a', 'b', 'c', 'd', 'e']
 indexToSheetName = ['line', 'triangle', 'rectangle', 'diamond', 'hexagon', 'octagon', 'circle' ]
 cellCountH = 4
@@ -16,7 +16,7 @@ for j in range(5):
     for i in range(7):
         # Load and stretch the sheet
         inputImagePath = inputImageBasePath + authorName[j] + '-sheets-' + str(i) + '.jpg'
-        outputPathStub = outputBasePath + indexToSheetName[i] + "-" + authorName[j] + '-'
+        outputPathStub = outputBasePath + indexToSheetName[i] + '/neat-set-' + indexToSheetName[i] + "-" + authorName[j] + '-'
         sheet = Image.open(inputImagePath)
         sheet = sheet.resize((sheetImageWidth, sheetImageHeight))
         sheetOutputImageName = outputPathStub + 'sheet.jpg'
@@ -35,5 +35,5 @@ for j in range(5):
 
                 cellImageName = outputPathStub + str(x + (y * cellCountV)) + '.jpg'
                 cellImage = sheet.crop((left, top, right, bottom))
-                cellImage = cellImage.convert('L') # Convert to black and white
+                cellImage = cellImage.convert('L').resize((100,100)) # Convert to black and white
                 cellImage.save(cellImageName)
