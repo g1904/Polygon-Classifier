@@ -28,14 +28,14 @@ def load_dataset(SHOULD_USE_ARTIFICIAL_DATA = False):
   if SHOULD_USE_ARTIFICIAL_DATA:
     datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale = 1./255)
     train_ds = datagen.flow_from_directory(
-    "drive/MyDrive/CV_data/artificial_mnist/images",
+    "datasets/artificial_mnist/images",
     target_size = (32,32),
     class_mode = "categorical",
     batch_size = 8,
     color_mode='grayscale'
     )
     test_ds = datagen.flow_from_directory(
-    "drive/MyDrive/CV_data/test_mnist",
+    "datasets/test_mnist",
     target_size = (32,32),
     class_mode = "categorical",
     batch_size = 8,
@@ -128,3 +128,5 @@ def plot_confusion_matrix(x_test, y_test, model):
   plt.show()
 
 plot_confusion_matrix(actual_x_test, actual_y_test, pretrained_model)
+
+pretrained_model.evaluate(actual_x_test,actual_y_test)
